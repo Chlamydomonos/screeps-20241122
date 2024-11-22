@@ -1,0 +1,21 @@
+{
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^28.0.1",
+        "@rollup/plugin-node-resolve": "^15.3.0",
+        "@rollup/plugin-typescript": "^12.1.1",
+        "@types/lodash": "^4.17.13",
+        "@types/node": "^22.9.1",
+        "@types/screeps": "^3.3.8",
+        "rollup": "^4.27.3",
+        "rollup-plugin-clear": "^2.0.7",
+        "rollup-plugin-copy": "^3.5.0",
+        "rollup-plugin-screeps": "^1.0.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.6.3"
+    },
+    "packageManager": "pnpm@9.13.2+sha512.88c9c3864450350e65a33587ab801acf946d7c814ed1134da4a924f6df5a2120fd36b46aab68f7cd1d413149112d53c7db3a4136624cfd00ff1846a0c6cef48a",
+    "scripts": {
+        "build": "rollup -c --environment DEST:local",
+        "deploy": "rollup -c --environment DEST:main"
+    }
+}
