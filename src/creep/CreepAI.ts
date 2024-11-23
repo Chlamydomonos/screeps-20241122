@@ -1,57 +1,53 @@
-import { AIWithMemory } from '../base/AIWithMemory';
+import { AI, AIManager } from '../base/AI';
 import { RoomAI } from '../room/RoomAI';
-import { CreepManager } from './CreepManager';
+import { RoleCreepManager, CreepManager } from './CreepManager';
 import { CreepRole } from './CreepRole';
-import { CreepRoles } from './CreepRoles';
+import { CreepRoleName, CreepRoles } from './CreepRoles';
 import { CreepTask } from './CreepTask';
 import { IdleTask } from './tasks/IdleTask';
 
-export class CreepAI extends AIWithMemory<Creep> {
+export class CreepAI extends AI<Creep, RoleCreepManager> {
+    readonly roleName: string;
     readonly role: CreepRole;
 
     private constructor(creep: Creep) {
-        super(creep, CreepManager.INSTANCE, (creep) => creep.name);
-        this.role = new CreepRoles[creep.memory.role!](this);
+        super(
+            creep,
+            CreepManager.INSTANCE,
+            (creep) => creep.name,
+            (name) => Game.creeps[name],
+            [creep.room.name, creep.memory.role!]
+        );
+
+        this.roleName = creep.memory.role!;
+        this.role = new CreepRoles[this.roleName as CreepRoleName](this);
     }
-
     static of(creep: Creep) {
-        const existing = CreepManager.INSTANCE.data[creep.name];
-        if (existing) {
-            return existing;
-        }
-
         if (creep.memory.role && creep.memory.role in CreepRoles) {
-            return new CreepAI(creep);
+            return CreepManager.INSTANCE.getOrCreateAI(creep.name, creep, (c) => new CreepAI(c));
         }
-
         return undefined;
     }
 
-    override get value(): Creep | undefined {
-        return Game.creeps[this.id];
+    override onDeath() {
+        delete Memory.creeps[this.name];
     }
 
-    get roleName() {
-        return this.value!.memory.role!;
+    get memory() {
+        return this.value!.memory;
     }
 
     get room() {
         return RoomAI.of(this.value!.room);
     }
 
-    override onDeath(): void {
-        this.role.onDeath();
-        delete Memory.creeps[this.id];
-    }
-
     currentTask: CreepTask = new IdleTask(this);
-    defaultTask: () => CreepTask = () => new IdleTask(this);
 
     clearTask() {
-        this.currentTask = this.defaultTask();
+        this.currentTask = new IdleTask(this);
     }
 
-    override tick() {
+    protected override tickSelf(): void {
         const taskResult = this.currentTask.tick();
         this.role.tick(taskResult);
     }

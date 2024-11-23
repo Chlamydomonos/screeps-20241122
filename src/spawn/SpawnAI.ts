@@ -1,4 +1,5 @@
-import { AIWithMemory } from '../base/AIWithMemory';
+import { AI, AIManager } from '../base/AI';
+import { CreepRoleConstructor } from '../creep/CreepRole';
 import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { GlobalNamePool } from '../global/GlobalNamePool';
 import { RoomAI } from '../room/RoomAI';
@@ -24,31 +25,29 @@ export class SpawnTask {
     }
 }
 
-export class SpawnAI extends AIWithMemory<StructureSpawn> {
+export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
     private constructor(spawn: StructureSpawn) {
-        super(spawn, SpawnManager.INSTANCE, (spawn) => spawn.name);
+        super(
+            spawn,
+            SpawnManager.INSTANCE,
+            (spawn) => spawn.name,
+            (name) => Game.spawns[name],
+            [spawn.room.name]
+        );
     }
 
     static of(spawn: StructureSpawn) {
-        return SpawnManager.INSTANCE.data[spawn.name] ?? new SpawnAI(spawn);
+        return SpawnManager.INSTANCE.getOrCreateAI(spawn.name, spawn, (s) => new SpawnAI(s));
     }
 
-    override get value(): StructureSpawn | undefined {
-        return Game.spawns[this.id];
-    }
-
-    override onDeath(): void {
-        delete Memory.spawns[this.id];
+    override onDeath() {
+        delete Memory.spawns[this.name];
     }
 
     readonly taskQueue: SpawnTask[] = [];
     taskSpawning?: SpawnTask;
 
-    override tick() {
-        console.log(!!this.taskSpawning);
-        console.log(this.taskSpawning?.name);
-        console.log(this.taskSpawning?.status);
-        console.log(this.taskQueue.length);
+    protected override tickSelf() {
         if (!this.taskSpawning) {
             let firstTask: SpawnTask;
             while (true) {

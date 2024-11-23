@@ -1,4 +1,4 @@
-import { HarvestingPoint } from '../../room/points/HarvestingPoint';
+import { HarvestingPoint } from '../../room/positions/HarvestingPoint';
 import { SpawnManager } from '../../spawn/SpawnManager';
 import { staticImplements } from '../../utils/staticImplements';
 import { CreepAI } from '../CreepAI';
@@ -29,7 +29,7 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
     }
 
     static initMemory(harvestingPoint: HarvestingPoint) {
-        return { harvestingPointName: harvestingPoint.id };
+        return { harvestingPointName: harvestingPoint.name };
     }
 
     status = Status.NEW_BORN;
@@ -50,8 +50,8 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
             return;
         }
 
-        const harvestingPoint = this.creep.room.harvestingPoints.data[this.memory.harvestingPointName];
-        const spawn = SpawnManager.INSTANCE.data[this.memory.spawnName!];
+        const harvestingPoint = this.creep.room.harvestingPoints.ais[this.memory.harvestingPointName];
+        const spawn = SpawnManager.INSTANCE.ais[this.memory.spawnName!];
 
         switch (this.status) {
             case Status.NEW_BORN: {

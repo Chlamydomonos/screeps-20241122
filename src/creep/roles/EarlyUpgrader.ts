@@ -1,4 +1,4 @@
-import { UpgradingPoint } from '../../room/points/UpgradingPoint';
+import { UpgradingPoint } from '../../room/positions/UpgradingPoint';
 import { SpawnAI } from '../../spawn/SpawnAI';
 import { staticImplements } from '../../utils/staticImplements';
 import { CreepAI } from '../CreepAI';
@@ -28,7 +28,7 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
     }
 
     static initMemory(upgradingPoint: UpgradingPoint) {
-        return { upgradingPointName: upgradingPoint.id };
+        return { upgradingPointName: upgradingPoint.name };
     }
 
     status = Status.NEW_BORN;
@@ -49,7 +49,7 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
             return;
         }
 
-        const upgradingPoint = this.creep.room.upgradingPoints.data[this.memory.upgradingPointName];
+        const upgradingPoint = this.creep.room.upgradingPoints.ais[this.memory.upgradingPointName];
         const spawn = Game.spawns[this.memory.spawnName!];
 
         switch (this.status) {

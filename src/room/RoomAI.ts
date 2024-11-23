@@ -1,54 +1,67 @@
-import { AIWithMemory } from '../base/AIWithMemory';
+import { AI } from '../base/AI';
+import { CreepManager } from '../creep/CreepManager';
 import { SpawnManager } from '../spawn/SpawnManager';
-import { HarvestingPointManager } from './points/HarvestingPoint';
-import { UpgradingPointManager } from './points/UpgradingPoint';
+import { SourceManager } from './objects/SourceAI';
+import { HarvestingPointManager } from './positions/HarvestingPoint';
+import { UpgradingPointManager } from './positions/UpgradingPoint';
 import { RoomManager } from './RoomManager';
 
-interface Tickable {
-    tick: () => void;
+export interface RoomMemory {
+    upgradingPoints?: { x: number; y: number }[];
 }
 
-export class RoomAI extends AIWithMemory<Room, RoomManager> {
-    readonly tickables: Tickable[] = [];
-    private registerTickable<T extends Tickable>(tickable: T) {
-        this.tickables.push(tickable);
-        return tickable;
+export class RoomAI extends AI<Room, RoomManager> {
+    private constructor(room: Room) {
+        super(
+            room,
+            RoomManager.INSTANCE,
+            (room) => room.name,
+            (name) => Game.rooms[name],
+            []
+        );
+
+        if (!room.memory.data) {
+            room.memory.data = {};
+        }
     }
 
-    readonly harvestingPoints = this.registerTickable(new HarvestingPointManager(this));
-    readonly upgradingPoints = this.registerTickable(new UpgradingPointManager(this));
-
-    private constructor(room: Room) {
-        super(room, RoomManager.INSTANCE, (room) => room.name);
+    protected override initSelf(): void {
+        if (!this.memory.upgradingPoints) {
+            this.memory.upgradingPoints = this.upgradingPoints.findPoints();
+        } else {
+            this.upgradingPoints.readMemory(this.memory.upgradingPoints);
+        }
     }
 
     static of(room: Room) {
-        return RoomManager.INSTANCE.data[room.name] ?? new RoomAI(room);
+        return RoomManager.INSTANCE.getOrCreateAI(room.name, room, (r) => new RoomAI(r));
     }
 
-    override get value() {
-        return Game.rooms[this.id];
-    }
-
-    get spawnManager() {
-        return SpawnManager.INSTANCE.ofRoom(this.id);
+    get memory() {
+        return this.value!.memory.data!;
     }
 
     override onDeath() {
-        delete Memory.rooms[this.id];
+        delete Memory.rooms[this.name];
     }
 
-    override tick() {
-        for (const tickable of this.tickables) {
-            tickable.tick();
-        }
+    get creepManager() {
+        return CreepManager.INSTANCE.getOrCreateChild(this.name);
     }
+
+    get spawnManager() {
+        return SpawnManager.INSTANCE.getOrCreateChild(this.name);
+    }
+
+    readonly harvestingPoints = this.registerTickable(new HarvestingPointManager(this));
+    readonly sourceManager = this.registerTickable(new SourceManager(this));
+    readonly upgradingPoints = this.registerTickable(new UpgradingPointManager(this));
 
     pathCost(path: PathStep[]) {
         const terrain = this.value!.getTerrain();
         let cost = 0;
         for (const step of path) {
-            const hasRoad = new RoomPosition(step.x, step.y, this.id).lookFor(LOOK_STRUCTURES).some((structure) => {
+            const hasRoad = new RoomPosition(step.x, step.y, this.name).lookFor(LOOK_STRUCTURES).some((structure) => {
                 structure.structureType == STRUCTURE_ROAD;
             });
             if (hasRoad) {

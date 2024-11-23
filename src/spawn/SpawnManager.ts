@@ -1,15 +1,19 @@
 import { AIManager } from '../base/AI';
-import { type CreepRoleConstructor } from '../creep/CreepRole';
-import { type CreepRoleName, CreepRoles } from '../creep/CreepRoles';
+import { CreepRoleConstructor } from '../creep/CreepRole';
+import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { SpawnAI, SpawnTask, SpawnTaskStatus } from './SpawnAI';
 
 type ArgsOf<T extends CreepRoleName> = (typeof CreepRoles)[T] extends CreepRoleConstructor<any, infer P> ? P : never;
 
-export class RoomSpawnManager extends AIManager<StructureSpawn, SpawnAI> {
+export class RoomSpawnManager extends AIManager<StructureSpawn, SpawnAI, undefined, SpawnManager> {
+    constructor(name: string, parent: SpawnManager) {
+        super(name, undefined, parent);
+    }
+
     readonly tasks: Record<string, Record<string, SpawnTask>> = {};
 
     createTask<T extends CreepRoleName>(role: T, ...args: ArgsOf<T>) {
-        if (Object.keys(this.data).length == 0) {
+        if (Object.keys(this.ais).length == 0) {
             return undefined;
         }
 
@@ -22,8 +26,8 @@ export class RoomSpawnManager extends AIManager<StructureSpawn, SpawnAI> {
 
         let minTaskCount = 0xffff_ffff;
         let minSpawn: SpawnAI | undefined = undefined;
-        for (const spawnName in this.data) {
-            const spawn = this.data[spawnName];
+        for (const spawnName in this.ais) {
+            const spawn = this.ais[spawnName];
             if (spawn.taskQueue.length < minTaskCount) {
                 minTaskCount = spawn.taskQueue.length;
                 minSpawn = spawn;
@@ -46,37 +50,15 @@ export class RoomSpawnManager extends AIManager<StructureSpawn, SpawnAI> {
     }
 }
 
-export class SpawnManager extends AIManager<StructureSpawn, SpawnAI> {
-    readonly rooms: Record<string, RoomSpawnManager> = {};
-
-    static readonly INSTANCE = new SpawnManager();
+export class SpawnManager extends AIManager<StructureSpawn, SpawnAI, RoomSpawnManager, undefined> {
     private constructor() {
-        super();
+        super('SpawnManager', RoomSpawnManager, undefined);
     }
+    static readonly INSTANCE = new SpawnManager();
 
-    override registerAI(ai: SpawnAI, fromChild: boolean = false) {
-        if (!fromChild) {
-            const roomName = ai.value!.room.name;
-            if (!this.rooms[roomName]) {
-                this.rooms[roomName] = new RoomSpawnManager(this);
-            }
-            this.rooms[roomName].registerAI(ai);
-        } else {
-            super.registerAI(ai);
+    override afterAIDeath(ai: SpawnAI) {
+        if (Object.keys(this.ais).length == 0) {
+            Memory.dead = true;
         }
-    }
-
-    override tick() {
-        for (const name in this.rooms) {
-            this.rooms[name].tick();
-        }
-    }
-
-    ofRoom(roomName: string) {
-        if (!this.rooms[roomName]) {
-            this.rooms[roomName] = new RoomSpawnManager();
-        }
-
-        return this.rooms[roomName];
     }
 }

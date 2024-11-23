@@ -17,5 +17,8 @@
     "scripts": {
         "build": "rollup -c --environment DEST:local",
         "deploy": "rollup -c --environment DEST:main"
+    },
+    "dependencies": {
+        "reflect-metadata": "^0.2.2"
     }
 }

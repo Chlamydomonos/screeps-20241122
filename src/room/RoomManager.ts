@@ -1,9 +1,9 @@
 import { AIManager } from '../base/AI';
 import { RoomAI } from './RoomAI';
 
-export class RoomManager extends AIManager<Room, RoomAI> {
-    static readonly INSTANCE = new RoomManager();
+export class RoomManager extends AIManager<Room, RoomAI, undefined, undefined> {
     private constructor() {
-        super();
+        super('RoomManager', undefined, undefined);
     }
+    static readonly INSTANCE = new RoomManager();
 }

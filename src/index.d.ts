@@ -1,10 +1,16 @@
 interface Memory {
-    custom: Record<string, any>;
+    version: number;
+    dead?: boolean;
+    custom: Record<string, any> & { containers: Record<string, any> };
 }
 
 interface CreepMemory {
     role?: import('./creep/CreepRoles').CreepRoleName;
     data?: any;
+}
+
+interface RoomMemory {
+    data?: import('./room/RoomAI').RoomMemory;
 }
 
 interface RoomPosition {
