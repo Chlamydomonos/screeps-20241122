@@ -14,7 +14,7 @@ import { SourceMapConsumer } from 'source-map';
 let consumer: SourceMapConsumer | undefined = undefined;
 
 // 第一次报错时创建 sourceMap
-const getConsumer = function () {
+const getConsumer = () => {
     if (!consumer) {
         consumer = new SourceMapConsumer(require('main.js.map'));
     }
@@ -22,18 +22,10 @@ const getConsumer = function () {
 };
 
 // 缓存映射关系以提高性能
-const cache: Record<string, any> = {};
+const cache: Record<string, string> = {};
 
-/**
- * 使用源映射生成堆栈跟踪，并生成原始标志位
- * 警告 - global 重置之后的首次调用会产生很高的 cpu 消耗 (> 30 CPU)
- * 之后的每次调用会产生较低的 cpu 消耗 (~ 0.1 CPU / 次)
- *
- * @param {Error | string} error 错误或原始追踪栈
- * @returns {string} 映射之后的源代码追踪栈
- */
-const sourceMappedStackTrace = (error: any) => {
-    const stack = error instanceof Error ? error.stack : error;
+const sourceMappedStackTrace = (error: Error | string) => {
+    const stack = error instanceof Error ? error.stack! : error;
     // 有缓存直接用
     if (cache.hasOwnProperty(stack)) return cache[stack];
 

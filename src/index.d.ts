@@ -5,6 +5,7 @@ interface Memory {
 }
 
 interface CreepMemory {
+    spawned?: boolean;
     role?: import('./creep/CreepRoles').CreepRoleName;
     data?: any;
 }

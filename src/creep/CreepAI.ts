@@ -1,4 +1,4 @@
-import { AI, AIManager } from '../base/AI';
+import { AI } from '../base/AI';
 import { RoomAI } from '../room/RoomAI';
 import { RoleCreepManager, CreepManager } from './CreepManager';
 import { CreepRole } from './CreepRole';
@@ -23,7 +23,7 @@ export class CreepAI extends AI<Creep, RoleCreepManager> {
         this.role = new CreepRoles[this.roleName as CreepRoleName](this);
     }
     static of(creep: Creep) {
-        if (creep.memory.role && creep.memory.role in CreepRoles) {
+        if (creep.memory.spawned && creep.memory.role && creep.memory.role in CreepRoles) {
             return CreepManager.INSTANCE.getOrCreateAI(creep.name, creep, (c) => new CreepAI(c));
         }
         return undefined;
@@ -47,8 +47,12 @@ export class CreepAI extends AI<Creep, RoleCreepManager> {
         this.currentTask = new IdleTask(this);
     }
 
-    protected override tickSelf(): void {
+    protected override tickSelf() {
         const taskResult = this.currentTask.tick();
         this.role.tick(taskResult);
+    }
+
+    protected override initSelf() {
+        this.role.init();
     }
 }

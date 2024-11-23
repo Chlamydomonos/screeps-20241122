@@ -80,6 +80,10 @@ export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
                 firstTask.status = SpawnTaskStatus.SPAWNING;
             }
         } else if (!this.value!.spawning) {
+            console.log(`Spawn finished, creep: ${this.taskSpawning.name}`);
+            const creep = Game.creeps[this.taskSpawning.name];
+            console.log(creep ? 'found' : 'not found');
+            creep.memory.spawned = true;
             this.taskSpawning.status = SpawnTaskStatus.FINISHED;
             this.taskSpawning = undefined;
         }

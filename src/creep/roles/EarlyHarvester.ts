@@ -5,6 +5,7 @@ import { CreepAI } from '../CreepAI';
 import { CreepRole, type CreepRoleConstructor } from '../CreepRole';
 import { CreepTaskResult, CreepTaskStatus } from '../CreepTask';
 import { MoveByPathTask } from '../tasks/MoveByPathTask';
+import { rememberSpawn } from './utils/rememberSpawn';
 
 enum Status {
     NEW_BORN,
@@ -38,11 +39,10 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
 
     constructor(creep: CreepAI) {
         super(creep);
+    }
 
-        if (!this.memory.spawnName) {
-            const spawn = this.creep.value!.pos.findInRange(FIND_MY_SPAWNS, 1)[0];
-            this.memory.spawnName = spawn.name;
-        }
+    override init() {
+        rememberSpawn(this);
     }
 
     override tick(taskResult: CreepTaskResult) {

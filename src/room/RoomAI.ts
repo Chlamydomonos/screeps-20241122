@@ -1,6 +1,7 @@
 import { AI } from '../base/AI';
 import { CreepManager } from '../creep/CreepManager';
 import { SpawnManager } from '../spawn/SpawnManager';
+import { BuilderManager } from './BuilderManager';
 import { SourceManager } from './objects/SourceAI';
 import { HarvestingPointManager } from './positions/HarvestingPoint';
 import { UpgradingPointManager } from './positions/UpgradingPoint';
@@ -56,6 +57,7 @@ export class RoomAI extends AI<Room, RoomManager> {
     readonly harvestingPoints = this.registerTickable(new HarvestingPointManager(this));
     readonly sourceManager = this.registerTickable(new SourceManager(this));
     readonly upgradingPoints = this.registerTickable(new UpgradingPointManager(this));
+    readonly builderManager = this.registerTickable(new BuilderManager(this));
 
     pathCost(path: PathStep[]) {
         const terrain = this.value!.getTerrain();

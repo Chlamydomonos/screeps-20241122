@@ -4,11 +4,15 @@ import { CreepTaskResult } from './CreepTask';
 
 export class CreepRole<M = any> {
     constructor(readonly creep: CreepAI) {}
+
+    init() {}
+
     get memory(): M {
         return this.creep.memory.data;
     }
 
     tick(taskResult: CreepTaskResult) {}
+
     onDeath() {}
 }
 
