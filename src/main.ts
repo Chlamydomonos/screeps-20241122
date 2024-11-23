@@ -1,5 +1,6 @@
 import { CreepAI } from './creep/CreepAI';
 import { CreepManager } from './creep/CreepManager';
+import { errorMapper } from './error-mapper';
 import { init } from './global/init';
 import { RoomAI } from './room/RoomAI';
 import { RoomManager } from './room/RoomManager';
@@ -8,7 +9,7 @@ import { SpawnManager } from './spawn/SpawnManager';
 
 init();
 
-const createAI = () => {
+const createAI = errorMapper(() => {
     for (const roomName in Game.rooms) {
         RoomAI.of(Game.rooms[roomName]);
     }
@@ -24,7 +25,7 @@ const createAI = () => {
             creep.suicide();
         }
     }
-};
+});
 
 const runAI = () => {
     RoomManager.INSTANCE.tick();

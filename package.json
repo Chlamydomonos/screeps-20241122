@@ -19,6 +19,6 @@
         "deploy": "rollup -c --environment DEST:main"
     },
     "dependencies": {
-        "reflect-metadata": "^0.2.2"
+        "source-map": "0.6.1"
     }
 }
