@@ -2,10 +2,13 @@ import { CreepAI } from './creep/CreepAI';
 import { CreepManager } from './creep/CreepManager';
 import { errorMapper } from './errorMapper';
 import { init } from './global/init';
+import { CreepMovementManager } from './room/CreepMovementManager';
 import { RoomAI } from './room/RoomAI';
 import { RoomManager } from './room/RoomManager';
 import { SpawnAI } from './spawn/SpawnAI';
 import { SpawnManager } from './spawn/SpawnManager';
+
+global.tick = 0;
 
 init();
 
@@ -45,7 +48,15 @@ const runAI = () => {
     CreepManager.INSTANCE.tick();
 };
 
+const handleMovement = () => {
+    for (const roomName in Game.rooms) {
+        CreepMovementManager.handleRequests(Game.rooms[roomName]);
+    }
+};
+
 export const loop = errorMapper(() => {
     createAI();
     runAI();
+    handleMovement();
+    tick++;
 });

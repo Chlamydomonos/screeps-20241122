@@ -17,3 +17,13 @@ interface RoomMemory {
 interface RoomPosition {
     offset(direction: DirectionConstant): RoomPosition | undefined;
 }
+
+interface Room {
+    creepMoveRequests(): Record<number, Record<number, import('./room/CreepMovementManager').CreepMovementRequest[]>>;
+}
+
+interface Creep {
+    getDodgeRequests(): import('./room/CreepMovementManager').DodgeRequest[];
+}
+
+declare var tick: number;

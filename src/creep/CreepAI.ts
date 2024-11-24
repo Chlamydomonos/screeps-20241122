@@ -49,10 +49,19 @@ export class CreepAI extends AI<Creep, RoleCreepManager> {
 
     protected override tickSelf() {
         const taskResult = this.currentTask.tick();
-        this.role.tick(taskResult);
+        this.role.tick(taskResult, this.value!.getDodgeRequests());
     }
 
     protected override initSelf() {
         this.role.init();
+    }
+
+    requestMove(direction: DirectionConstant, priority: number = 1000) {
+        if (this.value!.fatigue > 0) {
+            return ERR_TIRED;
+        } else {
+            this.room.creepMovementManager.onRequest(this, direction, priority);
+            return OK;
+        }
     }
 }

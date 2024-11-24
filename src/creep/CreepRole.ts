@@ -1,3 +1,4 @@
+import { DodgeRequest } from '../room/CreepMovementManager';
 import { RoomAI } from '../room/RoomAI';
 import { CreepAI } from './CreepAI';
 import { CreepTaskResult } from './CreepTask';
@@ -11,7 +12,7 @@ export class CreepRole<M = any> {
         return this.creep.memory.data;
     }
 
-    tick(taskResult: CreepTaskResult) {}
+    tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]) {}
 
     onDeath() {}
 }

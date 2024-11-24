@@ -1,3 +1,5 @@
+import { initCreep } from './prototypes/Creep';
+import { initRoom } from './prototypes/Room';
 import { initRoomPosition } from './prototypes/RoomPosition';
 
 const MEMORY_VERSION = 1;
@@ -27,9 +29,12 @@ const initMemory = () => {
 
 const initPrototypes = () => {
     initRoomPosition();
+    initRoom();
+    initCreep();
 };
 
 export const init = () => {
+    tick = 0;
     initPrototypes();
     initMemory();
 };

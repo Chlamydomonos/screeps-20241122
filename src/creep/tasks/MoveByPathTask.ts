@@ -16,10 +16,22 @@ export class MoveByPathTask extends CreepTask<MoveFailure> {
     private hasSucceeded = false;
     private hasFailed = false;
 
+    private oldX: number;
+    private oldY: number;
+    private lastMoved = false;
+
     stuckTime = 0;
 
-    constructor(readonly creep: CreepAI, readonly path: PathStep[], readonly stuckTimeout: number = 5) {
+    constructor(
+        readonly creep: CreepAI,
+        readonly path: PathStep[],
+        readonly priority: number = 1000,
+        readonly stuckTimeout: number = 5
+    ) {
         super(creep);
+        const pos = creep.value!.pos;
+        this.oldX = pos.x;
+        this.oldY = pos.y;
     }
 
     override tick(): CreepTaskResult<MoveFailure> {
@@ -37,40 +49,41 @@ export class MoveByPathTask extends CreepTask<MoveFailure> {
         const lastElem = this.path[this.path.length - 1];
         const targetX = lastElem.x;
         const targetY = lastElem.y;
-        if (this.creep.value!.pos.x == targetX && this.creep.value!.pos.y == targetY) {
+        const pos = this.creep.value!.pos;
+        const currentX = pos.x;
+        const currentY = pos.y;
+
+        if (currentX == targetX && currentY == targetY) {
             this.hasSucceeded = true;
             return { status: CreepTaskStatus.SUCCESS };
         }
-        const oldX = this.creep.value!.pos.x;
-        const oldY = this.creep.value!.pos.y;
-        const statusCode = this.creep.value!.moveByPath(this.path);
-        const newX = this.creep.value!.pos.x;
-        const newY = this.creep.value!.pos.y;
-        if (statusCode == OK) {
-            if (this.creep.value!.pos.x == targetX && this.creep.value!.pos.y == targetY) {
-                this.hasSucceeded = true;
-                return { status: CreepTaskStatus.SUCCESS };
-            }
 
-            if (newX == oldX && newY == oldY) {
-                this.stuckTime++;
-                if (this.stuckTime > this.stuckTimeout) {
-                    this.hasFailed = true;
-                    return { status: CreepTaskStatus.FAIL, reason: MoveFailure.STUCK };
-                } else {
-                    return { status: CreepTaskStatus.IN_PROGRESS };
-                }
-            } else {
-                return { status: CreepTaskStatus.IN_PROGRESS };
+        if (this.lastMoved && currentX == this.oldX && currentY == this.oldY) {
+            this.stuckTime++;
+            if (this.stuckTime > this.stuckTimeout) {
+                this.hasFailed = true;
+                return { status: CreepTaskStatus.FAIL, reason: MoveFailure.STUCK };
             }
-        } else if (statusCode == ERR_NOT_FOUND) {
+        }
+
+        this.oldX = currentX;
+        this.oldY = currentY;
+
+        let stepToGo: PathStep | undefined;
+        for (const step of this.path) {
+            if (step.x - step.dx == currentX && step.y - step.dy == currentY) {
+                stepToGo = step;
+                break;
+            }
+        }
+
+        if (!stepToGo) {
             this.hasFailed = true;
             return { status: CreepTaskStatus.FAIL, reason: MoveFailure.NOT_IN_PATH };
-        } else if (statusCode == ERR_TIRED) {
-            return { status: CreepTaskStatus.IN_PROGRESS };
-        } else {
-            this.hasFailed = true;
-            return { status: CreepTaskStatus.FAIL, reason: MoveFailure.UNKNOWN };
         }
+
+        const code = this.creep.requestMove(stepToGo.direction, this.priority);
+        this.lastMoved = code == OK;
+        return { status: CreepTaskStatus.IN_PROGRESS };
     }
 }
