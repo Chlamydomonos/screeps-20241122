@@ -1,11 +1,10 @@
-import { MemoryContainer } from '../base/MemoryContainer';
-import { CreepAI } from '../creep/CreepAI';
-import { CreepManager } from '../creep/CreepManager';
+import { TreeAI } from '../base/TreeAI';
 import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { IBuilder } from '../creep/roles/base/IBuilder';
-import { SpawnTask, SpawnTaskStatus } from '../spawn/SpawnAI';
+import { CreepCountController } from '../spawn/CreepCountController';
+import { SpawnTask } from '../spawn/SpawnAI';
 import { Heap } from '../utils/Heap';
-import { BuilderTask, ConstructionTask, RepairTask } from './BuilderTask';
+import { BuilderTask, BuilderTaskType, ConstructionTask, RepairTask } from './BuilderTask';
 import { RoomAI } from './RoomAI';
 
 const BUILDER_COUNT = 2;
@@ -39,11 +38,9 @@ type BuilderRoleName = {
 
 const builderRoles: BuilderRoleName[] = ['EarlyBuilder'];
 
-interface BuilderManagerMemory {
-    creepNames: string[];
-}
+interface BuilderManagerMemory {}
 
-export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
+export class BuilderManager extends TreeAI<BuilderManagerMemory> {
     readonly tasks: Record<string, BuilderTask> = {};
 
     spawnTasks: SpawnTask[] = [];
@@ -51,6 +48,16 @@ export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
     constructor(readonly room: RoomAI) {
         super(`builderManager#${room.name}`, () => ({ creepNames: [] }));
     }
+
+    readonly ccc = this.registerChild(
+        new CreepCountController(
+            this.name,
+            this.room,
+            (room) => room.value!.controller!.level >= 2,
+            () => BUILDER_COUNT,
+            () => 'EarlyBuilder'
+        )
+    );
 
     registerTask(task: BuilderTask) {
         this.tasks[task.objectId] = task;
@@ -70,46 +77,15 @@ export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
         }
     }
 
-    trySpawn() {
-        const creepManager = this.room.creepManager;
-        const spawnManager = this.room.spawnManager;
-
-        if (Object.keys(creepManager.ais).length < 3) {
-            return;
-        }
-
-        for (const creepName in this.spawnTasks) {
-            const task = this.spawnTasks[creepName];
-            if (task.status == SpawnTaskStatus.FINISHED) {
-                if (Game.creeps[task.name]) {
-                    this.memory.creepNames.push(task.name);
-                }
-                delete this.spawnTasks[creepName];
-            } else if (task.status == SpawnTaskStatus.CANCELED) {
-                delete this.spawnTasks[creepName];
-            }
-        }
-
-        const total = this.memory.creepNames.length + Object.keys(this.spawnTasks).length;
-        for (let i = total; i < BUILDER_COUNT; i++) {
-            const task = spawnManager.createTask('EarlyBuilder');
-            if (!task) {
-                return;
-            }
-            this.spawnTasks.push(task);
-        }
-    }
-
-    tick() {
+    override tickSelf() {
         this.gatherTasks();
-        this.trySpawn();
 
         const creepManager = this.room.creepManager;
         const builderList: IBuilder[] = [];
 
         if (creepManager) {
             for (const role of builderRoles) {
-                const roleManager = creepManager.children[role];
+                const roleManager = creepManager.childManagers[role];
                 if (roleManager) {
                     for (const creepName in roleManager.ais) {
                         const creep = roleManager.ais[creepName];
@@ -126,6 +102,12 @@ export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
         for (const taskName in this.tasks) {
             const task = this.tasks[taskName];
             if (!task.alive) {
+                if (task.type == BuilderTaskType.CONSTRUCTION) {
+                    const structures = this.room.value!.lookForAt(LOOK_STRUCTURES, task.x, task.y);
+                    for (const structure of structures) {
+                        this.room.handleNewStructure(structure);
+                    }
+                }
                 delete this.tasks[taskName];
             } else if (!task.builder) {
                 const minBuilder = builders.removeTop();
@@ -135,9 +117,5 @@ export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
                 }
             }
         }
-    }
-
-    onCreepDeath(creep: CreepAI) {
-        this.memory.creepNames = this.memory.creepNames.filter((n) => n != creep.name);
     }
 }

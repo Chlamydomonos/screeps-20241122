@@ -1,6 +1,5 @@
-import { CreepAI } from '../../creep/CreepAI';
 import { DIRECTIONS } from '../../global/prototypes/RoomPosition';
-import { SpawnTask, SpawnTaskStatus } from '../../spawn/SpawnAI';
+import { CreepCountController } from '../../spawn/CreepCountController';
 import { PositionAI, PositionAIManager } from '../PositionAI';
 import { RoomAI } from '../RoomAI';
 
@@ -26,37 +25,15 @@ export class UpgradingPoint extends PositionAI<UpgradingPointManager, UpgradingP
         );
     }
 
-    spawnTask?: SpawnTask;
-
-    protected override tickSelf() {
-        if (!this.memory.enabled) {
-            return;
-        }
-
-        if (this.spawnTask) {
-            if (this.spawnTask.status == SpawnTaskStatus.CANCELED) {
-                this.spawnTask = undefined;
-            } else if (this.spawnTask.status == SpawnTaskStatus.FINISHED) {
-                this.memory.creepName = this.spawnTask.name;
-                const creep = CreepAI.of(Game.creeps[this.memory.creepName]);
-                if (!creep) {
-                    this.memory.creepName = undefined;
-                }
-
-                this.spawnTask = undefined;
-            }
-        } else {
-            if (this.memory.creepName && !Game.creeps[this.memory.creepName]) {
-                this.memory.creepName = undefined;
-            }
-
-            if (!this.memory.creepName) {
-                if (Object.keys(this.room.creepManager.ais).length >= 2) {
-                    this.spawnTask = this.room.spawnManager.createTask('EarlyUpgrader', this);
-                }
-            }
-        }
-    }
+    ccc = this.registerChild(
+        new CreepCountController(
+            this.name,
+            this.room,
+            (room) => this.memory.enabled && room.creepManager.count >= 1,
+            () => 1,
+            () => 'EarlyUpgrader'
+        )
+    );
 }
 
 export class UpgradingPointManager extends PositionAIManager<UpgradingPoint, undefined, undefined> {

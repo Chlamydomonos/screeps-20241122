@@ -32,4 +32,21 @@ export class GlobalNamePool {
 
         return result;
     }
+
+    public genId(increment: boolean = true) {
+        if (!Memory.custom.globalId) {
+            Memory.custom.globalId = 0;
+        }
+
+        const id = Memory.custom.globalId;
+
+        if (increment) {
+            Memory.custom.globalId++;
+            if (Memory.custom.globalId > MAX_ID) {
+                Memory.custom.globalId = 0;
+            }
+        }
+
+        return id;
+    }
 }

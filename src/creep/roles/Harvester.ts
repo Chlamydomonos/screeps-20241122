@@ -1,10 +1,11 @@
-import { DodgeRequest } from '../../room/CreepMovementManager';
 import { HarvestingPoint } from '../../room/positions/HarvestingPoint';
 import { RoomAI } from '../../room/RoomAI';
 import { staticImplements } from '../../utils/staticImplements';
 import { CreepRole, CreepRoleConstructor } from '../CreepRole';
 import { CreepTaskResult, CreepTaskStatus } from '../CreepTask';
 import { MoveByPathTask } from '../tasks/MoveByPathTask';
+
+const MAX_HARVEST_PARTS = 10;
 
 enum Status {
     NEW_BORN,
@@ -26,14 +27,16 @@ export class Harvester extends CreepRole<HarvesterMemory> {
         let cost = BODYPART_COST[MOVE];
         const workCost = BODYPART_COST[WORK];
         const available = room.value!.energyCapacityAvailable;
-        while (true) {
+        for (let i = 0; i < MAX_HARVEST_PARTS; i++) {
             if (cost + workCost > available) {
-                return parts;
+                break;
             }
 
             parts.push(WORK);
             cost += workCost;
         }
+
+        return parts;
     }
 
     static initMemory(harvestingPoint: HarvestingPoint) {

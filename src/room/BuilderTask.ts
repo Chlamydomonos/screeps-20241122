@@ -20,8 +20,13 @@ export class ConstructionTask implements BuilderTaskBase<ConstructionSite> {
     finished = false;
     readonly type: BuilderTaskType.CONSTRUCTION = BuilderTaskType.CONSTRUCTION;
 
+    readonly x: number;
+    readonly y: number;
+
     private constructor(readonly site: ConstructionSite) {
         this.objectId = site.id;
+        this.x = site.pos.x;
+        this.y = site.pos.y;
         RoomAI.of(site.room!).builderManager.registerTask(this);
     }
 

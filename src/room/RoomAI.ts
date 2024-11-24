@@ -3,6 +3,7 @@ import { CreepManager } from '../creep/CreepManager';
 import { SpawnManager } from '../spawn/SpawnManager';
 import { BuilderManager } from './BuilderManager';
 import { CreepMovementManager } from './CreepMovementManager';
+import { ContainerAI, ContainerManager } from './objects/ContainerAI';
 import { SourceManager } from './objects/SourceAI';
 import { HarvestingPointManager } from './positions/HarvestingPoint';
 import { UpgradingPointManager } from './positions/UpgradingPoint';
@@ -55,11 +56,12 @@ export class RoomAI extends AI<Room, RoomManager> {
         return SpawnManager.INSTANCE.getOrCreateChild(this.name);
     }
 
-    readonly harvestingPoints = this.registerTickable(new HarvestingPointManager(this));
-    readonly sourceManager = this.registerTickable(new SourceManager(this));
-    readonly upgradingPoints = this.registerTickable(new UpgradingPointManager(this));
-    readonly builderManager = this.registerTickable(this.registerChildContainer(new BuilderManager(this)));
+    readonly harvestingPoints = this.registerChild(new HarvestingPointManager(this));
+    readonly sourceManager = this.registerChild(new SourceManager(this));
+    readonly upgradingPoints = this.registerChild(new UpgradingPointManager(this));
+    readonly builderManager = this.registerChild(new BuilderManager(this));
     readonly creepMovementManager = new CreepMovementManager(this);
+    readonly containerManager = this.registerChild(new ContainerManager(this));
 
     pathCost(path: PathStep[]) {
         const terrain = this.value!.getTerrain();
@@ -80,5 +82,11 @@ export class RoomAI extends AI<Room, RoomManager> {
             }
         }
         return cost;
+    }
+
+    handleNewStructure(structure: Structure) {
+        if (structure.structureType == STRUCTURE_CONTAINER) {
+            ContainerAI.of(structure as StructureContainer, this.containerManager);
+        }
     }
 }

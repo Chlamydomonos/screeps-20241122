@@ -1,4 +1,11 @@
+/**
+ * @file AI.ts
+ *
+ * 互相依赖的两个类：{@link AI} 和 {@link AIManager}
+ */
+
 import { ArrayOfLen, Decrement, Increment } from '../utils/TypeUtil';
+import { TreeNode } from './TreeNode';
 
 export type RootManager<M extends AIManager<any, any, any, any>, Depth extends number = 5> = Depth extends 0
     ? never
@@ -26,12 +33,27 @@ type TreeDepth<
 
 export type ManagerNames<M extends AIManager<any, any, undefined, any>> = ArrayOfLen<TreeDepth<M>, string>;
 
-export class AI<T, M extends AIManager<T, any, undefined, any>> {
+/**
+ * @class # AI
+ *
+ * 需要被{@link AIManager}管理的所有AI的基类。一般和某个生命周期为1 tick的对象关联。
+ *
+ * @typeParam T 关联的对象类型。使用{@link value}获取关联的对象。
+ *
+ * @typeParam M 管理该AI的**最底层**{@link AIManager}。
+ */
+export class AI<T, M extends AIManager<T, any, undefined, any>> extends TreeNode {
     readonly name: string;
     readonly manager: M;
 
-    private initialized = false;
-
+    /**
+     * @constructor
+     * @param obj 构造该AI使用的对象。注意，由于该对象的生命周期一般只有1 tick，它不会被保存。
+     * @param manager 管理该AI的**最顶层**{@link AIManager}。
+     * @param nameGetter 从对象获取名称的函数，用于跨tick获取对象
+     * @param objGetter 从名称获取对象的函数，用于跨tick获取对象
+     * @param managerNames 管理该AI的各级{@link AIManager}的名称，顺序自顶向下，不包含最顶层。用于构建AIManager树。
+     */
     constructor(
         obj: T,
         manager: RootManager<M>,
@@ -39,6 +61,7 @@ export class AI<T, M extends AIManager<T, any, undefined, any>> {
         private objGetter: (name: string) => T | undefined,
         managerNames: ManagerNames<M>
     ) {
+        super();
         this.name = nameGetter(obj);
         this.manager = manager.registerAI(this, managerNames);
     }
@@ -50,44 +73,6 @@ export class AI<T, M extends AIManager<T, any, undefined, any>> {
     get alive() {
         return !!this.value;
     }
-
-    private tickables: { tick(): void }[] = [];
-    protected registerTickable<T extends { tick(): void }>(tickable: T) {
-        this.tickables.push(tickable);
-        return tickable;
-    }
-
-    tick() {
-        if (!this.initialized) {
-            this.initialized = true;
-            this.initSelf();
-        }
-
-        for (const tickable of this.tickables) {
-            tickable.tick();
-        }
-        this.tickSelf();
-    }
-
-    protected initSelf() {}
-
-    protected tickSelf() {}
-
-    private childContainers: { onDeath(): void }[] = [];
-    protected registerChildContainer<T extends { onDeath: () => void }>(childContainer: T) {
-        this.childContainers.push(childContainer);
-        return childContainer;
-    }
-
-    onDeath() {
-        for (const childContainer of this.childContainers) {
-            childContainer.onDeath();
-        }
-
-        this.onSelfDeath();
-    }
-
-    protected onSelfDeath() {}
 }
 
 export type LeafManager<M extends AIManager<any, any, any, any>, Depth extends number = 5> = Depth extends 0
@@ -104,26 +89,37 @@ export interface AIManagerConstructor<P extends AIManager<any, any, any, any>, M
     new (name: string, parent: P): M;
 }
 
+/**
+ * @class # AIManager
+ *
+ * 组成一棵AIManager树（在TreeNode树结构之外）。
+ * 在{@link tickSelf}中执行所管理的所有{@link AI}的{@link TreeNode#tick}。
+ * 当管理的AI死亡，执行其{@link TreeNode#onDeath}。
+ *
+ * @typeParam T AI对应的对象类型
+ * @typeParam A AI类型
+ * @typeParam C 该manager的子节点类型
+ * @typeParam P 该manager的父节点类型
+ */
 export class AIManager<
     T,
     A extends AI<T, any>,
     C extends AIManager<T, A, any, any> | undefined,
     P extends AIManager<T, A, any, any> | undefined
-> {
+> extends TreeNode {
     readonly ais: Record<string, A> = {};
-    readonly children: C extends AIManager<T, A, any, any> ? Record<string, C> : undefined;
-
-    private initialized = false;
+    readonly childManagers: C extends AIManager<T, A, any, any> ? Record<string, C> : undefined;
 
     constructor(
         readonly name: string,
         private childClass: C extends AIManager<any, any, any, any> ? AIManagerConstructor<any, C> : undefined,
         readonly parent: P
     ) {
+        super();
         if (!childClass) {
-            this.children = undefined as any;
+            this.childManagers = undefined as any;
         } else {
-            this.children = {} as any;
+            this.childManagers = {} as any;
         }
     }
 
@@ -139,7 +135,7 @@ export class AIManager<
             return undefined as C;
         }
 
-        const children = this.children as Record<string, C>;
+        const children = this.childManagers as Record<string, C>;
         if (!children[name]) {
             children[name] = new this.childClass(name, this) as C;
         }
@@ -152,7 +148,7 @@ export class AIManager<
             return this as any;
         } else {
             const childName = names.shift()!;
-            const children = this.children as Record<string, C>;
+            const children = this.childManagers as Record<string, C>;
             if (!children[childName]) {
                 children[childName] = new this.childClass!(childName, this) as C;
             }
@@ -160,14 +156,10 @@ export class AIManager<
         }
     }
 
-    tick() {
-        if (!this.initialized) {
-            this.initialized = true;
-            this.initSelf();
-        }
-        if (this.children) {
-            for (const name in this.children) {
-                this.children[name].tick();
+    protected override tickSelf() {
+        if (this.childManagers) {
+            for (const name in this.childManagers) {
+                this.childManagers[name].tick();
             }
         } else {
             for (const name in this.ais) {
@@ -190,7 +182,9 @@ export class AIManager<
         this.afterAIDeath(ai);
     }
 
-    afterAIDeath(ai: A) {}
+    protected afterAIDeath(ai: A) {}
 
-    protected initSelf() {}
+    get count() {
+        return Object.keys(this.ais).length;
+    }
 }

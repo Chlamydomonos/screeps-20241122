@@ -1,5 +1,8 @@
-export class MemoryContainer<M> {
+import { TreeNode } from './TreeNode';
+
+export class TreeAI<M> extends TreeNode {
     constructor(readonly name: string, initMemory: () => M) {
+        super();
         if (!Memory.custom.containers[name]) {
             Memory.custom.containers[name] = initMemory();
         }
@@ -9,7 +12,7 @@ export class MemoryContainer<M> {
         return Memory.custom.containers[this.name];
     }
 
-    onDeath() {
+    protected override onSelfDeath() {
         delete Memory.custom.containers[this.name];
     }
 }

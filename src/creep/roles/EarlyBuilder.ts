@@ -62,7 +62,6 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
         for (const task of this.taskQueue) {
             task.builder = undefined;
         }
-        this.creep.room.builderManager.onCreepDeath(this.creep);
     }
 
     override tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]) {

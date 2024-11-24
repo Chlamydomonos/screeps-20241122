@@ -1,12 +1,11 @@
-import { CreepAI } from '../../creep/CreepAI';
 import { DIRECTIONS } from '../../global/prototypes/RoomPosition';
-import { SpawnTask, SpawnTaskStatus } from '../../spawn/SpawnAI';
+import { CreepCountController } from '../../spawn/CreepCountController';
+import { SpawnTask } from '../../spawn/SpawnAI';
 import { SourceAI } from '../objects/SourceAI';
 import { PositionAI, PositionAIManager } from '../PositionAI';
 import { RoomAI } from '../RoomAI';
 
 export interface HarvestingPointMemory {
-    creepName?: string;
     sourceId: string;
     distance: number;
     enabled: boolean;
@@ -27,7 +26,18 @@ export class HarvestingPoint extends PositionAI<SourceHarvestingPointManager, Ha
         );
     }
 
+    readonly ccc = this.registerChild(
+        new CreepCountController(
+            this.name,
+            this.room,
+            () => this.memory.enabled,
+            () => 1,
+            () => 'EarlyHarvester'
+        )
+    );
+
     spawnTask?: SpawnTask;
+    hasContainer = false;
 
     get source(): Source {
         return Game.getObjectById(this.memory.sourceId)!;
@@ -38,29 +48,13 @@ export class HarvestingPoint extends PositionAI<SourceHarvestingPointManager, Ha
     }
 
     protected override tickSelf() {
-        if (!this.memory.enabled) {
-            return;
-        }
-
-        if (this.spawnTask) {
-            if (this.spawnTask.status == SpawnTaskStatus.CANCELED) {
-                this.spawnTask = undefined;
-            } else if (this.spawnTask.status == SpawnTaskStatus.FINISHED) {
-                this.memory.creepName = this.spawnTask.name;
-                const creep = CreepAI.of(Game.creeps[this.memory.creepName]);
-                if (!creep) {
-                    this.memory.creepName = undefined;
+        if (tick % 10 == 0) {
+            this.hasContainer = false;
+            const lookFor = this.room.value!.lookForAt(LOOK_STRUCTURES, this.x, this.y);
+            for (const structure of lookFor) {
+                if (structure.structureType == STRUCTURE_CONTAINER) {
+                    this.hasContainer = true;
                 }
-
-                this.spawnTask = undefined;
-            }
-        } else {
-            if (this.memory.creepName && !Game.creeps[this.memory.creepName]) {
-                this.memory.creepName = undefined;
-            }
-
-            if (!this.memory.creepName) {
-                this.spawnTask = this.room.spawnManager.createTask('EarlyHarvester', this);
             }
         }
     }
