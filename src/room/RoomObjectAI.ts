@@ -24,7 +24,7 @@ export class RoomObjectAI<T extends _HasId, M extends RoomObjectAIManager<T, any
         return Memory.custom.containers[this.memoryName];
     }
 
-    override onDeath() {
+    protected override onSelfDeath() {
         delete Memory.custom.containers[this.memoryName];
     }
 }

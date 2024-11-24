@@ -29,7 +29,7 @@ export class CreepAI extends AI<Creep, RoleCreepManager> {
         return undefined;
     }
 
-    override onDeath() {
+    protected override onSelfDeath() {
         delete Memory.creeps[this.name];
     }
 

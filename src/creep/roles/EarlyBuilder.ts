@@ -1,5 +1,7 @@
 import { BuilderTask, BuilderTaskType, ConstructionTask, RepairTask } from '../../room/BuilderTask';
+import { DodgeRequest } from '../../room/CreepMovementManager';
 import { SpawnManager } from '../../spawn/SpawnManager';
+import { oppositeDirection } from '../../utils/DirectionUtil';
 import { staticImplements } from '../../utils/staticImplements';
 import { CreepAI } from '../CreepAI';
 import { CreepRole, CreepRoleConstructor } from '../CreepRole';
@@ -12,10 +14,11 @@ enum Status {
     NEW_BORN,
     MOVING_TO_SITE,
     BUILDING,
-    MOVING_TO_SPAWN,
-    RESTING_AT_SPAWN,
     MOVING_TO_REPAIR_SITE,
     REPAIRING,
+    MOVING_TO_SPAWN,
+    RESTING_AT_SPAWN,
+    DODGING_AT_SPAWN,
 }
 
 interface EarlyBuilderMemory {
@@ -59,15 +62,19 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
         for (const task of this.taskQueue) {
             task.builder = undefined;
         }
+        this.creep.room.builderManager.onCreepDeath(this.creep);
     }
 
-    override tick(taskResult: CreepTaskResult) {
+    override tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]) {
         const spawn = SpawnManager.INSTANCE.ais[this.memory.spawnName!];
 
         switch (this.status) {
             case Status.NEW_BORN: {
                 if (!this.currentTask) {
                     if (this.taskQueue.length == 0) {
+                        if (dodgeRequests.length > 0) {
+                            this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
+                        }
                         break;
                     }
 
@@ -213,6 +220,27 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
 
                         break;
                     }
+                }
+                if (dodgeRequests.length > 0) {
+                    this.status = Status.DODGING_AT_SPAWN;
+                    this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
+                    break;
+                }
+                break;
+            }
+            case Status.DODGING_AT_SPAWN: {
+                if (dodgeRequests.length > 0) {
+                    this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
+                    break;
+                }
+
+                if (
+                    this.creep.value!.store.energy > 0 ||
+                    (spawn.taskQueue.length == 0 &&
+                        spawn.value!.store.energy >= this.creep.value!.store.getCapacity('energy'))
+                ) {
+                    this.status = Status.NEW_BORN;
+                    break;
                 }
 
                 break;

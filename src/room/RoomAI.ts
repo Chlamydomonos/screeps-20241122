@@ -43,7 +43,7 @@ export class RoomAI extends AI<Room, RoomManager> {
         return this.value!.memory.data!;
     }
 
-    override onDeath() {
+    protected override onSelfDeath() {
         delete Memory.rooms[this.name];
     }
 
@@ -58,7 +58,7 @@ export class RoomAI extends AI<Room, RoomManager> {
     readonly harvestingPoints = this.registerTickable(new HarvestingPointManager(this));
     readonly sourceManager = this.registerTickable(new SourceManager(this));
     readonly upgradingPoints = this.registerTickable(new UpgradingPointManager(this));
-    readonly builderManager = this.registerTickable(new BuilderManager(this));
+    readonly builderManager = this.registerTickable(this.registerChildContainer(new BuilderManager(this)));
     readonly creepMovementManager = new CreepMovementManager(this);
 
     pathCost(path: PathStep[]) {

@@ -8,11 +8,9 @@ import { RoomManager } from './room/RoomManager';
 import { SpawnAI } from './spawn/SpawnAI';
 import { SpawnManager } from './spawn/SpawnManager';
 
-global.tick = 0;
-
 init();
 
-const createAI = errorMapper(() => {
+const createAI = () => {
     for (const roomName in Game.rooms) {
         RoomAI.of(Game.rooms[roomName]);
     }
@@ -40,7 +38,7 @@ const createAI = errorMapper(() => {
             }
         }
     }
-});
+};
 
 const runAI = () => {
     RoomManager.INSTANCE.tick();
@@ -55,8 +53,15 @@ const handleMovement = () => {
 };
 
 export const loop = errorMapper(() => {
-    createAI();
-    runAI();
-    handleMovement();
+    if (!Memory.dead) {
+        createAI();
+        runAI();
+        handleMovement();
+    } else {
+        console.log('--------DEAD--------');
+        if (Object.keys(Game.spawns).length > 0) {
+            init();
+        }
+    }
     tick++;
 });

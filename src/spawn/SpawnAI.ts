@@ -40,7 +40,7 @@ export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
         return SpawnManager.INSTANCE.getOrCreateAI(spawn.name, spawn, (s) => new SpawnAI(s));
     }
 
-    override onDeath() {
+    protected override onSelfDeath() {
         delete Memory.spawns[this.name];
     }
 

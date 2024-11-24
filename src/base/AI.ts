@@ -73,7 +73,21 @@ export class AI<T, M extends AIManager<T, any, undefined, any>> {
 
     protected tickSelf() {}
 
-    onDeath() {}
+    private childContainers: { onDeath(): void }[] = [];
+    protected registerChildContainer<T extends { onDeath: () => void }>(childContainer: T) {
+        this.childContainers.push(childContainer);
+        return childContainer;
+    }
+
+    onDeath() {
+        for (const childContainer of this.childContainers) {
+            childContainer.onDeath();
+        }
+
+        this.onSelfDeath();
+    }
+
+    protected onSelfDeath() {}
 }
 
 export type LeafManager<M extends AIManager<any, any, any, any>, Depth extends number = 5> = Depth extends 0

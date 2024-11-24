@@ -1,3 +1,5 @@
+import { MemoryContainer } from '../base/MemoryContainer';
+import { CreepAI } from '../creep/CreepAI';
 import { CreepManager } from '../creep/CreepManager';
 import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { IBuilder } from '../creep/roles/base/IBuilder';
@@ -37,12 +39,18 @@ type BuilderRoleName = {
 
 const builderRoles: BuilderRoleName[] = ['EarlyBuilder'];
 
-export class BuilderManager {
+interface BuilderManagerMemory {
+    creepNames: string[];
+}
+
+export class BuilderManager extends MemoryContainer<BuilderManagerMemory> {
     readonly tasks: Record<string, BuilderTask> = {};
 
     spawnTasks: SpawnTask[] = [];
 
-    constructor(readonly room: RoomAI) {}
+    constructor(readonly room: RoomAI) {
+        super(`builderManager#${room.name}`, () => ({ creepNames: [] }));
+    }
 
     registerTask(task: BuilderTask) {
         this.tasks[task.objectId] = task;
@@ -69,17 +77,24 @@ export class BuilderManager {
         if (Object.keys(creepManager.ais).length < 3) {
             return;
         }
-        this.spawnTasks = this.spawnTasks.filter((t) => {
-            if (t.status == SpawnTaskStatus.FINISHED) {
-                return !!CreepManager.INSTANCE.ais[t.name];
-            }
-            return t.status != SpawnTaskStatus.CANCELED;
-        });
 
-        while (this.spawnTasks.length < BUILDER_COUNT) {
+        for (const creepName in this.spawnTasks) {
+            const task = this.spawnTasks[creepName];
+            if (task.status == SpawnTaskStatus.FINISHED) {
+                if (Game.creeps[task.name]) {
+                    this.memory.creepNames.push(task.name);
+                }
+                delete this.spawnTasks[creepName];
+            } else if (task.status == SpawnTaskStatus.CANCELED) {
+                delete this.spawnTasks[creepName];
+            }
+        }
+
+        const total = this.memory.creepNames.length + Object.keys(this.spawnTasks).length;
+        for (let i = total; i < BUILDER_COUNT; i++) {
             const task = spawnManager.createTask('EarlyBuilder');
             if (!task) {
-                break;
+                return;
             }
             this.spawnTasks.push(task);
         }
@@ -120,5 +135,9 @@ export class BuilderManager {
                 }
             }
         }
+    }
+
+    onCreepDeath(creep: CreepAI) {
+        this.memory.creepNames = this.memory.creepNames.filter((n) => n != creep.name);
     }
 }

@@ -50,7 +50,7 @@ export class PositionAI<M extends PositionAIManager<any, undefined, any>, Me> ex
         this._alive = false;
     }
 
-    override onDeath() {
+    protected override onSelfDeath() {
         delete Memory.custom.containers[this.name];
     }
 }

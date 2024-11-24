@@ -34,7 +34,7 @@ const initPrototypes = () => {
 };
 
 export const init = () => {
-    tick = 0;
+    global.tick = 0;
     initPrototypes();
     initMemory();
 };

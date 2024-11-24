@@ -1,5 +1,7 @@
+import { DodgeRequest } from '../../room/CreepMovementManager';
 import { HarvestingPoint } from '../../room/positions/HarvestingPoint';
 import { SpawnManager } from '../../spawn/SpawnManager';
+import { oppositeDirection } from '../../utils/DirectionUtil';
 import { staticImplements } from '../../utils/staticImplements';
 import { CreepAI } from '../CreepAI';
 import { CreepRole, type CreepRoleConstructor } from '../CreepRole';
@@ -9,11 +11,12 @@ import { rememberSpawn } from './utils/rememberSpawn';
 
 enum Status {
     NEW_BORN,
-    MOVING_TO_MINE,
-    MINING,
-    RESTING_AT_MINE,
+    MOVING_TO_SOURCE,
+    HARVESTING,
+    RESTING_AT_SOURCE,
     MOVING_TO_SPAWN,
     RESTING_AT_SPAWN,
+    DODGING_AT_SPAWN,
 }
 
 interface EarlyHarvesterMemory {
@@ -45,7 +48,7 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
         rememberSpawn(this);
     }
 
-    override tick(taskResult: CreepTaskResult) {
+    override tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]) {
         if (!this.memory.harvestingPointName) {
             return;
         }
@@ -65,7 +68,7 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
                 if (this.creep.value!.store.energy == 0) {
                     const path = this.creep.value!.pos.findPathTo(harvestingPoint.pos);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_MINE;
+                    this.status = Status.MOVING_TO_SOURCE;
                 } else {
                     const path = this.creep.value!.pos.findPathTo(spawn.value!);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
@@ -73,9 +76,9 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
                 }
                 break;
             }
-            case Status.MOVING_TO_MINE: {
+            case Status.MOVING_TO_SOURCE: {
                 if (taskResult.status == CreepTaskStatus.SUCCESS) {
-                    this.status = Status.MINING;
+                    this.status = Status.HARVESTING;
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
                     this.status = Status.NEW_BORN;
@@ -83,15 +86,15 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
                 }
                 break;
             }
-            case Status.MINING: {
+            case Status.HARVESTING: {
                 if (this.creep.value!.store.getFreeCapacity('energy') == 0) {
-                    this.status = Status.RESTING_AT_MINE;
+                    this.status = Status.RESTING_AT_SOURCE;
                 } else {
                     this.creep.value!.harvest(harvestingPoint.source);
                 }
                 break;
             }
-            case Status.RESTING_AT_MINE: {
+            case Status.RESTING_AT_SOURCE: {
                 if (spawn.value!.store.getFreeCapacity('energy') > 0) {
                     this.status = Status.MOVING_TO_SPAWN;
                     if (!this.pathSourceToSpawn) {
@@ -114,7 +117,7 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
             case Status.RESTING_AT_SPAWN: {
                 const energyLeft = this.creep.value!.store.energy;
                 if (energyLeft == 0) {
-                    this.status = Status.MOVING_TO_MINE;
+                    this.status = Status.MOVING_TO_SOURCE;
                     if (!this.pathSpawnToSource) {
                         this.pathSpawnToSource = this.creep.value!.pos.findPathTo(harvestingPoint.pos);
                     }
@@ -125,6 +128,24 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
                 if (energyToTransfer > 0) {
                     this.creep.value!.transfer(spawn.value!, 'energy', energyToTransfer);
                 }
+                if (dodgeRequests.length > 0) {
+                    this.status = Status.DODGING_AT_SPAWN;
+                    this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
+                    break;
+                }
+                break;
+            }
+            case Status.DODGING_AT_SPAWN: {
+                if (dodgeRequests.length > 0) {
+                    this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
+                    break;
+                }
+
+                if (this.creep.value!.store.energy == 0 || spawn.value!.store.getFreeCapacity('energy') > 0) {
+                    this.status = Status.NEW_BORN;
+                    break;
+                }
+
                 break;
             }
         }
