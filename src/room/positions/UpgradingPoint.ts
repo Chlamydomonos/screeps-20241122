@@ -31,7 +31,7 @@ export class UpgradingPoint extends PositionAI<UpgradingPointManager, UpgradingP
             this.room,
             (room) => this.memory.enabled && room.creepManager.count >= 1,
             () => 1,
-            () => 'EarlyUpgrader'
+            (m) => m.createTask('EarlyUpgrader', this)
         )
     );
 }

@@ -1,7 +1,7 @@
 import { TreeAI } from '../base/TreeAI';
-import { CreepRoleName } from '../creep/CreepRoles';
 import { RoomAI } from '../room/RoomAI';
 import { SpawnTask, SpawnTaskStatus } from './SpawnAI';
+import { RoomSpawnManager } from './SpawnManager';
 
 interface CreepCountControllerMemory {
     creepNames: string[];
@@ -13,7 +13,7 @@ export class CreepCountController extends TreeAI<CreepCountControllerMemory> {
         readonly room: RoomAI,
         readonly enableCondition: (room: RoomAI) => boolean,
         readonly count: (room: RoomAI) => number,
-        readonly role: (room: RoomAI) => CreepRoleName
+        readonly taskFactory: (spawn: RoomSpawnManager, room: RoomAI) => SpawnTask | undefined
     ) {
         super(`ccc#${name}`, () => ({ creepNames: [] }));
     }
@@ -26,8 +26,6 @@ export class CreepCountController extends TreeAI<CreepCountControllerMemory> {
         }
 
         this.memory.creepNames = this.memory.creepNames.filter((n) => !!Game.creeps[n]);
-
-        const spawnManager = this.room.spawnManager;
 
         for (const creepName in this.spawnTasks) {
             const task = this.spawnTasks[creepName];
@@ -44,7 +42,7 @@ export class CreepCountController extends TreeAI<CreepCountControllerMemory> {
         const total = this.memory.creepNames.length + Object.keys(this.spawnTasks).length;
         const needed = this.count(this.room);
         for (let i = total; i < needed; i++) {
-            const task = spawnManager.createTask(this.role(this.room));
+            const task = this.taskFactory(this.room.spawnManager, this.room);
             if (!task) {
                 return;
             }

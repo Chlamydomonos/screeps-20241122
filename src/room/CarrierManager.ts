@@ -13,16 +13,12 @@ interface CarrierTask {
     toAmount: number;
 }
 
-interface CarrierManagerMemory {
-    creepNames: string[];
-}
-
-export class CarrierManager extends TreeAI<CarrierManagerMemory> {
+export class CarrierManager extends TreeAI<undefined> {
     readonly tasks: Record<number, CarrierTask> = {};
 
     spawnTasks: SpawnTask[] = [];
 
     constructor(readonly room: RoomAI) {
-        super(`carrierManager#${room.name}`, () => ({ creepNames: [] }));
+        super(`carrierManager#${room.name}`, () => undefined);
     }
 }

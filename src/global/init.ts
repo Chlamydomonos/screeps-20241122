@@ -2,7 +2,7 @@ import { initCreep } from './prototypes/Creep';
 import { initRoom } from './prototypes/Room';
 import { initRoomPosition } from './prototypes/RoomPosition';
 
-const MEMORY_VERSION = 1;
+const MEMORY_VERSION = 2;
 
 const initMemory = () => {
     if (Memory.dead) {
@@ -10,7 +10,8 @@ const initMemory = () => {
         Memory.dead = false;
     }
 
-    if (Memory.version < MEMORY_VERSION) {
+    if (Memory.version != MEMORY_VERSION) {
+        console.log(`Memory version updated to ${MEMORY_VERSION}`);
         Memory.version = MEMORY_VERSION;
         Memory.creeps = {};
         Memory.flags = {};

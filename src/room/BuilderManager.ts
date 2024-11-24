@@ -38,15 +38,13 @@ type BuilderRoleName = {
 
 const builderRoles: BuilderRoleName[] = ['EarlyBuilder'];
 
-interface BuilderManagerMemory {}
-
-export class BuilderManager extends TreeAI<BuilderManagerMemory> {
+export class BuilderManager extends TreeAI<undefined> {
     readonly tasks: Record<string, BuilderTask> = {};
 
     spawnTasks: SpawnTask[] = [];
 
     constructor(readonly room: RoomAI) {
-        super(`builderManager#${room.name}`, () => ({ creepNames: [] }));
+        super(`builderManager#${room.name}`, () => undefined);
     }
 
     readonly ccc = this.registerChild(
@@ -55,7 +53,7 @@ export class BuilderManager extends TreeAI<BuilderManagerMemory> {
             this.room,
             (room) => room.value!.controller!.level >= 2,
             () => BUILDER_COUNT,
-            () => 'EarlyBuilder'
+            (m) => m.createTask('EarlyBuilder')
         )
     );
 

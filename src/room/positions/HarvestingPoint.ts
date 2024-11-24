@@ -32,7 +32,7 @@ export class HarvestingPoint extends PositionAI<SourceHarvestingPointManager, Ha
             this.room,
             () => this.memory.enabled,
             () => 1,
-            () => 'EarlyHarvester'
+            (m) => m.createTask('EarlyHarvester', this)
         )
     );
 
