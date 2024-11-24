@@ -26,10 +26,8 @@ const createAI = () => {
         }
 
         if (creep.memory.spawned === undefined) {
-            console.log(`Newly spawned creep: ${creepName}`);
             creep.memory.spawned = false;
         } else if (creep.memory.spawned === false) {
-            console.log(`Creep spawned without task: ${creepName}`);
             creep.suicide();
         } else {
             const ai = CreepAI.of(creep);

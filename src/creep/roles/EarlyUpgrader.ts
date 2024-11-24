@@ -142,6 +142,7 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
                         spawn.store.energy >= this.creep.value!.store.getCapacity('energy'))
                 ) {
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 

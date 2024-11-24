@@ -32,7 +32,25 @@ export class HarvestingPoint extends PositionAI<SourceHarvestingPointManager, Ha
             this.room,
             () => this.memory.enabled,
             () => 1,
-            (m) => m.createTask('EarlyHarvester', this)
+            (m, room) => {
+                if (room.value!.controller!.level < 2) {
+                    return m.createTask('EarlyHarvester', this);
+                }
+
+                const lookStructure = room.value!.lookForAt(LOOK_STRUCTURES, this.x, this.y);
+                let hasContainer = false;
+                for (const structure of lookStructure) {
+                    if (structure.structureType == STRUCTURE_CONTAINER) {
+                        hasContainer = true;
+                    }
+                }
+
+                if (hasContainer) {
+                    return m.createTask('Harvester', this);
+                } else {
+                    return m.createTask('EarlyHarvester', this);
+                }
+            }
         )
     );
 

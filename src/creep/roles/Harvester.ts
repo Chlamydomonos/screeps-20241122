@@ -45,6 +45,16 @@ export class Harvester extends CreepRole<HarvesterMemory> {
 
     status = Status.NEW_BORN;
 
+    override init(): void {
+        const harvestingPoint = this.creep.room.harvestingPoints.ais[this.memory.harvestingPointName];
+        const structures = this.creep.room.value!.lookForAt(LOOK_STRUCTURES, harvestingPoint.pos);
+        for (const structure of structures) {
+            if (structure.structureType == STRUCTURE_CONTAINER) {
+                this.memory.containerId = structure.id as any;
+            }
+        }
+    }
+
     override tick(taskResult: CreepTaskResult): void {
         const harvestingPoint = this.creep.room.harvestingPoints.ais[this.memory.harvestingPointName];
         switch (this.status) {

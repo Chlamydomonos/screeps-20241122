@@ -2,6 +2,7 @@ import { AI } from '../base/AI';
 import { CreepManager } from '../creep/CreepManager';
 import { SpawnManager } from '../spawn/SpawnManager';
 import { BuilderManager } from './BuilderManager';
+import { CarrierManager } from './CarrierManager';
 import { CreepMovementManager } from './CreepMovementManager';
 import { ContainerAI, ContainerManager } from './objects/ContainerAI';
 import { SourceManager } from './objects/SourceAI';
@@ -62,6 +63,7 @@ export class RoomAI extends AI<Room, RoomManager> {
     readonly builderManager = this.registerChild(new BuilderManager(this));
     readonly creepMovementManager = new CreepMovementManager(this);
     readonly containerManager = this.registerChild(new ContainerManager(this));
+    readonly carrierManager = this.registerChild(new CarrierManager(this));
 
     pathCost(path: PathStep[]) {
         const terrain = this.value!.getTerrain();

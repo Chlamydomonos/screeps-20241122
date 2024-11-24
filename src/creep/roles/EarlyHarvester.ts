@@ -143,6 +143,7 @@ export class EarlyHarvester extends CreepRole<EarlyHarvesterMemory> {
 
                 if (this.creep.value!.store.energy == 0 || spawn.value!.store.getFreeCapacity('energy') > 0) {
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 

@@ -2,17 +2,15 @@ import { GlobalNamePool } from '../../global/GlobalNamePool';
 import { RoomAI } from '../RoomAI';
 import { RoomObjectAI, RoomObjectAIManager } from '../RoomObjectAI';
 
-export interface ContainerMemory {}
-
 export interface ContainerRequest {
     id: number;
     container: ContainerAI;
     amount: number;
 }
 
-export class ContainerAI extends RoomObjectAI<StructureContainer, ContainerManager, ContainerMemory> {
+export class ContainerAI extends RoomObjectAI<StructureContainer, ContainerManager, undefined> {
     private constructor(container: StructureContainer, manager: ContainerManager) {
-        super(container, manager, () => ({}), []);
+        super(container, manager, () => undefined, []);
     }
 
     static of(container: StructureContainer, manager: ContainerManager) {
@@ -61,5 +59,16 @@ export class ContainerManager extends RoomObjectAIManager<StructureContainer, Co
         for (const container of containers) {
             ContainerAI.of(container, this);
         }
+    }
+
+    requestEnergy(amount: number) {
+        for (const name in this.ais) {
+            const ai = this.ais[name];
+            const request = ai.requestEnergy(amount);
+            if (request) {
+                return request;
+            }
+        }
+        return undefined;
     }
 }

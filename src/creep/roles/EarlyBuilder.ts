@@ -99,6 +99,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 
@@ -115,6 +116,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 
@@ -131,6 +133,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                     this.currentTask!.finished = true;
                     this.currentTask = undefined;
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 
@@ -141,6 +144,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 
@@ -157,6 +161,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.status = Status.NEW_BORN;
+                    this.creep.clearTask();
                     break;
                 }
 
@@ -172,6 +177,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (structure.hits == structure.hitsMax) {
                     this.currentTask!.finished = true;
                     this.currentTask = undefined;
+                    this.creep.clearTask();
                     this.status = Status.NEW_BORN;
                     break;
                 }
@@ -182,6 +188,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
             case Status.MOVING_TO_SPAWN: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
+                    this.creep.clearTask();
                     this.status = Status.NEW_BORN;
                     break;
                 }
@@ -198,6 +205,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
             case Status.RESTING_AT_SPAWN: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
+                    this.creep.clearTask();
                     this.status = Status.NEW_BORN;
                     break;
                 }
@@ -238,6 +246,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                     (spawn.taskQueue.length == 0 &&
                         spawn.value!.store.energy >= this.creep.value!.store.getCapacity('energy'))
                 ) {
+                    this.creep.clearTask();
                     this.status = Status.NEW_BORN;
                     break;
                 }

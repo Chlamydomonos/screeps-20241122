@@ -2,6 +2,7 @@ import { AI, AIManager } from '../base/AI';
 import { CreepRoleConstructor } from '../creep/CreepRole';
 import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { GlobalNamePool } from '../global/GlobalNamePool';
+import { CarrierTask, CarrierTaskStatus } from '../room/CarrierManager';
 import { RoomAI } from '../room/RoomAI';
 import { RoomSpawnManager, SpawnManager } from './SpawnManager';
 
@@ -44,10 +45,36 @@ export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
         delete Memory.spawns[this.name];
     }
 
+    get room() {
+        return RoomAI.of(this.value!.room);
+    }
+
     readonly taskQueue: SpawnTask[] = [];
     taskSpawning?: SpawnTask;
 
+    private carrierTask?: CarrierTask;
+    requestEnergy() {
+        if (this.room.creepManager.getOrCreateChild('EarlyHarvester').count > 0) {
+            return;
+        }
+
+        if (this.carrierTask) {
+            if (this.carrierTask.status != CarrierTaskStatus.FINISHED) {
+                return;
+            }
+
+            this.carrierTask = undefined;
+        }
+
+        const store = this.value!.store;
+        const freeCapacity = store.getFreeCapacity('energy');
+        if (freeCapacity > 0) {
+            this.room.carrierManager.createTask(this.value!, freeCapacity);
+        }
+    }
+
     protected override tickSelf() {
+        this.requestEnergy();
         if (!this.taskSpawning) {
             let firstTask: SpawnTask;
             while (true) {
@@ -80,9 +107,10 @@ export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
                 firstTask.status = SpawnTaskStatus.SPAWNING;
             }
         } else if (!this.value!.spawning) {
-            console.log(`Spawn finished, creep: ${this.taskSpawning.name}`);
             const creep = Game.creeps[this.taskSpawning.name];
-            console.log(creep ? 'found' : 'not found');
+            if (creep) {
+                console.log(`Creep ${creep.name} spawned in room ${creep.room.name}`);
+            }
             creep.memory.spawned = true;
             this.taskSpawning.status = SpawnTaskStatus.FINISHED;
             this.taskSpawning = undefined;
