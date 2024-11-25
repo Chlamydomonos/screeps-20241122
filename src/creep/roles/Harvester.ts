@@ -1,13 +1,14 @@
 import { HarvestingPoint } from '../../room/positions/HarvestingPoint';
 import { RoomAI } from '../../room/RoomAI';
 import { staticImplements } from '../../utils/staticImplements';
+import { CreepAI } from '../CreepAI';
 import { CreepRole, CreepRoleConstructor } from '../CreepRole';
 import { CreepTaskResult, CreepTaskStatus } from '../CreepTask';
 import { MoveByPathTask } from '../tasks/MoveByPathTask';
 
 const MAX_HARVEST_PARTS = 10;
 
-enum Status {
+enum State {
     NEW_BORN,
     MOVING_TO_SOURCE,
     HARVESTING,
@@ -20,8 +21,8 @@ interface HarvesterMemory {
 
 type Init = [HarvestingPoint];
 
-@staticImplements<CreepRoleConstructor<HarvesterMemory, Init>>()
-export class Harvester extends CreepRole<HarvesterMemory> {
+@staticImplements<CreepRoleConstructor<HarvesterMemory, State, Init>>()
+export class Harvester extends CreepRole<HarvesterMemory, State> {
     static bodyParts(room: RoomAI) {
         const parts: BodyPartConstant[] = [MOVE];
         let cost = BODYPART_COST[MOVE];
@@ -43,7 +44,13 @@ export class Harvester extends CreepRole<HarvesterMemory> {
         return { harvestingPointName: harvestingPoint.name };
     }
 
-    status = Status.NEW_BORN;
+    constructor(creep: CreepAI) {
+        super(creep, State.NEW_BORN, {
+            [State.NEW_BORN]: '👶',
+            [State.MOVING_TO_SOURCE]: '➡️⚡',
+            [State.HARVESTING]: '⛏️⚡',
+        });
+    }
 
     override init(): void {
         const harvestingPoint = this.creep.room.harvestingPoints.ais[this.memory.harvestingPointName];
@@ -57,29 +64,29 @@ export class Harvester extends CreepRole<HarvesterMemory> {
 
     override tick(taskResult: CreepTaskResult): void {
         const harvestingPoint = this.creep.room.harvestingPoints.ais[this.memory.harvestingPointName];
-        switch (this.status) {
-            case Status.NEW_BORN: {
+        switch (this.state) {
+            case State.NEW_BORN: {
                 const pos = this.creep.value!.pos;
                 if (pos.x == harvestingPoint.x && pos.y == harvestingPoint.y) {
-                    this.status = Status.HARVESTING;
+                    this.toState(State.HARVESTING);
                 } else {
                     const path = pos.findPathTo(harvestingPoint.pos);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_SOURCE;
+                    this.toState(State.MOVING_TO_SOURCE);
                 }
                 break;
             }
-            case Status.MOVING_TO_SOURCE: {
+            case State.MOVING_TO_SOURCE: {
                 if (taskResult.status == CreepTaskStatus.SUCCESS) {
-                    this.status = Status.HARVESTING;
+                    this.toState(State.HARVESTING);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.HARVESTING: {
+            case State.HARVESTING: {
                 const containerId = this.memory.containerId;
                 if (!containerId) {
                     this.creep.value!.suicide();

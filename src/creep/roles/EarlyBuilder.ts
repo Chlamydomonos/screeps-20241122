@@ -10,7 +10,7 @@ import { MoveByPathTask } from '../tasks/MoveByPathTask';
 import { IBuilder } from './base/IBuilder';
 import { rememberSpawn } from './utils/rememberSpawn';
 
-enum Status {
+enum State {
     NEW_BORN,
     MOVING_TO_SITE,
     BUILDING,
@@ -25,14 +25,22 @@ interface EarlyBuilderMemory {
     spawnName?: string;
 }
 
-@staticImplements<CreepRoleConstructor<EarlyBuilderMemory, []>>()
-export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuilder {
+@staticImplements<CreepRoleConstructor<EarlyBuilderMemory, State, []>>()
+export class EarlyBuilder extends CreepRole<EarlyBuilderMemory, State> implements IBuilder {
     currentTask?: BuilderTask;
     taskQueue: BuilderTask[] = [];
-    status = Status.NEW_BORN;
 
     constructor(creep: CreepAI) {
-        super(creep);
+        super(creep, State.NEW_BORN, {
+            [State.NEW_BORN]: '👶',
+            [State.MOVING_TO_SPAWN]: '➡️🏠',
+            [State.RESTING_AT_SPAWN]: '💤🏠',
+            [State.DODGING_AT_SPAWN]: '🏃‍♂️🏠',
+            [State.MOVING_TO_SITE]: '➡️🏗️',
+            [State.BUILDING]: '🏗️',
+            [State.MOVING_TO_REPAIR_SITE]: '➡️🏚️',
+            [State.REPAIRING]: '🏚️',
+        });
     }
 
     override init() {
@@ -67,8 +75,8 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
     override tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]) {
         const spawn = SpawnManager.INSTANCE.ais[this.memory.spawnName!];
 
-        switch (this.status) {
-            case Status.NEW_BORN: {
+        switch (this.state) {
+            case State.NEW_BORN: {
                 if (!this.currentTask) {
                     if (this.taskQueue.length == 0) {
                         if (dodgeRequests.length > 0) {
@@ -83,45 +91,45 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (this.creep.value!.store.energy == 0) {
                     const path = this.creep.value!.pos.findPathTo(spawn.value!);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_SPAWN;
+                    this.toState(State.MOVING_TO_SPAWN);
                 } else if (this.currentTask.type == BuilderTaskType.CONSTRUCTION) {
                     const path = this.creep.value!.pos.findPathTo(this.currentTask.site);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_SITE;
+                    this.toState(State.MOVING_TO_SITE);
                 } else {
                     const path = this.creep.value!.pos.findPathTo(this.currentTask.structure);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_REPAIR_SITE;
+                    this.toState(State.MOVING_TO_REPAIR_SITE);
                 }
                 break;
             }
-            case Status.MOVING_TO_SITE: {
+            case State.MOVING_TO_SITE: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
 
                 if (this.creep.value!.pos.inRangeTo(this.currentTask!.value, 3)) {
-                    this.status = Status.BUILDING;
+                    this.toState(State.BUILDING);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.BUILDING: {
+            case State.BUILDING: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
 
                 if (this.creep.value!.store.energy == 0) {
-                    this.status = Status.MOVING_TO_SPAWN;
+                    this.toState(State.MOVING_TO_SPAWN);
                     const path = this.creep.value!.pos.findPathTo(spawn.value!);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
                     break;
@@ -132,7 +140,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 if (site.progress == site.progressTotal) {
                     this.currentTask!.finished = true;
                     this.currentTask = undefined;
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
@@ -140,33 +148,33 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                 this.creep.value!.build(site);
                 break;
             }
-            case Status.MOVING_TO_REPAIR_SITE: {
+            case State.MOVING_TO_REPAIR_SITE: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
 
                 if (this.creep.value!.pos.inRangeTo(this.currentTask!.value, 3)) {
-                    this.status = Status.REPAIRING;
+                    this.toState(State.REPAIRING);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.REPAIRING: {
+            case State.REPAIRING: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
 
                 if (this.creep.value!.store.energy == 0) {
-                    this.status = Status.MOVING_TO_SPAWN;
+                    this.toState(State.MOVING_TO_SPAWN);
                     const path = this.creep.value!.pos.findPathTo(spawn.value!);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
                     break;
@@ -178,35 +186,35 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                     this.currentTask!.finished = true;
                     this.currentTask = undefined;
                     this.creep.clearTask();
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     break;
                 }
 
                 this.creep.value!.repair(structure);
                 break;
             }
-            case Status.MOVING_TO_SPAWN: {
+            case State.MOVING_TO_SPAWN: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.creep.clearTask();
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     break;
                 }
 
                 if (this.creep.value!.pos.inRangeTo(spawn.value!, 1)) {
-                    this.status = Status.RESTING_AT_SPAWN;
+                    this.toState(State.RESTING_AT_SPAWN);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.RESTING_AT_SPAWN: {
+            case State.RESTING_AT_SPAWN: {
                 if (!this.currentTask!.alive) {
                     this.currentTask = undefined;
                     this.creep.clearTask();
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     break;
                 }
 
@@ -220,22 +228,22 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                         const path = this.creep.value!.pos.findPathTo(this.currentTask!.value);
                         this.creep.currentTask = new MoveByPathTask(this.creep, path);
                         if (this.currentTask!.type == BuilderTaskType.CONSTRUCTION) {
-                            this.status = Status.MOVING_TO_SITE;
+                            this.toState(State.MOVING_TO_SITE);
                         } else {
-                            this.status = Status.MOVING_TO_REPAIR_SITE;
+                            this.toState(State.MOVING_TO_REPAIR_SITE);
                         }
 
                         break;
                     }
                 }
                 if (dodgeRequests.length > 0) {
-                    this.status = Status.DODGING_AT_SPAWN;
+                    this.toState(State.DODGING_AT_SPAWN);
                     this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
                     break;
                 }
                 break;
             }
-            case Status.DODGING_AT_SPAWN: {
+            case State.DODGING_AT_SPAWN: {
                 if (dodgeRequests.length > 0) {
                     this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
                     break;
@@ -247,7 +255,7 @@ export class EarlyBuilder extends CreepRole<EarlyBuilderMemory> implements IBuil
                         spawn.value!.store.energy >= this.creep.value!.store.getCapacity('energy'))
                 ) {
                     this.creep.clearTask();
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     break;
                 }
 

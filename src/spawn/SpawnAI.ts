@@ -1,5 +1,4 @@
-import { AI, AIManager } from '../base/AI';
-import { CreepRoleConstructor } from '../creep/CreepRole';
+import { AI } from '../base/AI';
 import { CreepRoleName, CreepRoles } from '../creep/CreepRoles';
 import { GlobalNamePool } from '../global/GlobalNamePool';
 import { CarrierTask, CarrierTaskStatus } from '../room/CarrierManager';
@@ -54,10 +53,6 @@ export class SpawnAI extends AI<StructureSpawn, RoomSpawnManager> {
 
     private carrierTask?: CarrierTask;
     requestEnergy() {
-        if (this.room.creepManager.getOrCreateChild('EarlyHarvester').count > 0) {
-            return;
-        }
-
         if (this.carrierTask) {
             if (this.carrierTask.status != CarrierTaskStatus.FINISHED) {
                 return;

@@ -4,13 +4,14 @@ import { ContainerRequest } from '../../room/objects/ContainerAI';
 import { RoomAI } from '../../room/RoomAI';
 import { oppositeDirection } from '../../utils/DirectionUtil';
 import { staticImplements } from '../../utils/staticImplements';
+import { CreepAI } from '../CreepAI';
 import { CreepRole, CreepRoleConstructor } from '../CreepRole';
 import { CreepTaskResult, CreepTaskStatus } from '../CreepTask';
 import { MoveByPathTask } from '../tasks/MoveByPathTask';
 
 const MAX_CARRY_PARTS = 10;
 
-enum Status {
+enum State {
     NEW_BORN,
     WAITING_FOR_ENERGY,
     MOVING_TO_CONTAINER,
@@ -18,8 +19,8 @@ enum Status {
     FULFILLING_TASK,
 }
 
-@staticImplements<CreepRoleConstructor<undefined, []>>()
-export class Carrier extends CreepRole<undefined> {
+@staticImplements<CreepRoleConstructor<undefined, State, []>>()
+export class Carrier extends CreepRole<undefined, State> {
     static bodyParts(room: RoomAI) {
         const parts: BodyPartConstant[] = [];
         let cost = 0;
@@ -44,14 +45,23 @@ export class Carrier extends CreepRole<undefined> {
     containerRequest?: ContainerRequest;
     taskQueue: CarrierTask[] = [];
     taskEnergySum = 0;
-    status = Status.NEW_BORN;
+
+    constructor(creep: CreepAI) {
+        super(creep, State.NEW_BORN, {
+            [State.NEW_BORN]: '👶',
+            [State.MOVING_TO_CONTAINER]: '➡️🥤',
+            [State.WAITING_FOR_ENERGY]: '⏳⚡',
+            [State.WAITING_FOR_TASK]: '⏳📋',
+            [State.FULFILLING_TASK]: '📋',
+        });
+    }
 
     get freeCapacity() {
         return this.creep.value!.store.energy - this.taskEnergySum;
     }
 
     get ready() {
-        return this.status == Status.WAITING_FOR_TASK || this.status == Status.FULFILLING_TASK;
+        return this.state == State.WAITING_FOR_TASK || this.state == State.FULFILLING_TASK;
     }
 
     registerTask(task: CarrierTask) {
@@ -72,27 +82,27 @@ export class Carrier extends CreepRole<undefined> {
     }
 
     override tick(taskResult: CreepTaskResult, dodgeRequests: DodgeRequest[]): void {
-        switch (this.status) {
-            case Status.NEW_BORN: {
+        switch (this.state) {
+            case State.NEW_BORN: {
                 if (this.currentTask) {
                     if (this.currentTask.amount < this.creep.value!.store.energy) {
                         const path = this.creep.value!.pos.findPathTo(this.currentTask.x, this.currentTask.y);
                         this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                        this.status = Status.FULFILLING_TASK;
+                        this.toState(State.FULFILLING_TASK);
                     } else {
-                        this.status = Status.WAITING_FOR_ENERGY;
+                        this.toState(State.WAITING_FOR_ENERGY);
                         break;
                     }
                 }
                 break;
             }
-            case Status.WAITING_FOR_ENERGY: {
+            case State.WAITING_FOR_ENERGY: {
                 const store = this.creep.value!.store;
                 const capacity = store.getCapacity(RESOURCE_ENERGY);
                 const energy = store.energy;
 
                 if (energy == capacity) {
-                    this.status = Status.WAITING_FOR_TASK;
+                    this.toState(State.WAITING_FOR_TASK);
                     break;
                 }
 
@@ -100,24 +110,24 @@ export class Carrier extends CreepRole<undefined> {
                 if (energyRequest) {
                     const path = this.creep.value!.pos.findPathTo(energyRequest.container.value!);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_CONTAINER;
+                    this.toState(State.MOVING_TO_CONTAINER);
                 } else if (dodgeRequests.length > 0) {
                     this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
                 }
                 break;
             }
-            case Status.MOVING_TO_CONTAINER: {
+            case State.MOVING_TO_CONTAINER: {
                 if (this.creep.value!.pos.inRangeTo(this.containerRequest!.container.value!, 1)) {
                     this.containerRequest?.container.fulfillRequest(this.containerRequest, this.creep.value!);
                     this.creep.clearTask();
-                    this.status = Status.WAITING_FOR_TASK;
+                    this.toState(State.WAITING_FOR_TASK);
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.WAITING_FOR_TASK: {
+            case State.WAITING_FOR_TASK: {
                 if (this.taskQueue.length > 0) {
                     this.currentTask = this.taskQueue.shift();
                 }
@@ -125,7 +135,7 @@ export class Carrier extends CreepRole<undefined> {
                 if (this.currentTask) {
                     const path = this.creep.value!.pos.findPathTo(this.currentTask.x, this.currentTask.y);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.FULFILLING_TASK;
+                    this.toState(State.FULFILLING_TASK);
                     break;
                 }
 
@@ -135,15 +145,15 @@ export class Carrier extends CreepRole<undefined> {
 
                 break;
             }
-            case Status.FULFILLING_TASK: {
+            case State.FULFILLING_TASK: {
                 if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
 
                 if (!this.currentTask) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
@@ -152,7 +162,7 @@ export class Carrier extends CreepRole<undefined> {
                     const structure = Game.getObjectById(this.currentTask.toId) as StructureSpawn | null;
                     if (!structure) {
                         this.currentTask = undefined;
-                        this.status = Status.NEW_BORN;
+                        this.toState(State.NEW_BORN);
                         this.creep.clearTask();
                         break;
                     }
@@ -171,7 +181,7 @@ export class Carrier extends CreepRole<undefined> {
                     this.currentTask = undefined;
 
                     if (this.taskQueue.length == 0) {
-                        this.status = Status.NEW_BORN;
+                        this.toState(State.NEW_BORN);
                         this.creep.clearTask();
                         break;
                     }

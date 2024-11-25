@@ -9,7 +9,7 @@ import { CreepTaskResult, CreepTaskStatus } from '../CreepTask';
 import { MoveByPathTask } from '../tasks/MoveByPathTask';
 import { rememberSpawn } from './utils/rememberSpawn';
 
-enum Status {
+enum State {
     NEW_BORN,
     MOVING_TO_CONTROLLER,
     UPGRADING,
@@ -25,8 +25,8 @@ interface EarlyUpgraderMemory {
 
 type Init = [UpgradingPoint];
 
-@staticImplements<CreepRoleConstructor<EarlyUpgraderMemory, Init>>()
-export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
+@staticImplements<CreepRoleConstructor<EarlyUpgraderMemory, State, Init>>()
+export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory, State> {
     static bodyParts() {
         return [MOVE, WORK, CARRY];
     }
@@ -35,12 +35,18 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
         return { upgradingPointName: upgradingPoint.name };
     }
 
-    status = Status.NEW_BORN;
     pathSpawnToController?: PathStep[];
     pathControllerToSpawn?: PathStep[];
 
     constructor(creep: CreepAI) {
-        super(creep);
+        super(creep, State.NEW_BORN, {
+            [State.NEW_BORN]: '👶',
+            [State.MOVING_TO_SPAWN]: '➡️🏠',
+            [State.RESTING_AT_SPAWN]: '💤🏠',
+            [State.DODGING_AT_SPAWN]: '🏃‍♂️🏠',
+            [State.MOVING_TO_CONTROLLER]: '➡️🖨️',
+            [State.UPGRADING]: '🖨️',
+        });
     }
 
     override init() {
@@ -55,8 +61,8 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
         const upgradingPoint = this.creep.room.upgradingPoints.ais[this.memory.upgradingPointName];
         const spawn = Game.spawns[this.memory.spawnName!];
 
-        switch (this.status) {
-            case Status.NEW_BORN: {
+        switch (this.state) {
+            case State.NEW_BORN: {
                 if (this.pathControllerToSpawn) {
                     delete this.pathControllerToSpawn;
                 }
@@ -67,25 +73,25 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
                 if (this.creep.value!.store.energy == 0) {
                     const path = this.creep.value!.pos.findPathTo(spawn);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_SPAWN;
+                    this.toState(State.MOVING_TO_SPAWN);
                 } else {
                     const path = this.creep.value!.pos.findPathTo(upgradingPoint.pos);
                     this.creep.currentTask = new MoveByPathTask(this.creep, path);
-                    this.status = Status.MOVING_TO_CONTROLLER;
+                    this.toState(State.MOVING_TO_CONTROLLER);
                 }
                 break;
             }
-            case Status.MOVING_TO_CONTROLLER: {
+            case State.MOVING_TO_CONTROLLER: {
                 if (taskResult.status == CreepTaskStatus.SUCCESS) {
-                    this.status = Status.UPGRADING;
+                    this.toState(State.UPGRADING);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.UPGRADING: {
+            case State.UPGRADING: {
                 if (this.creep.value!.store.energy > 0) {
                     const controller = this.creep.value!.room.controller!;
                     this.creep.value!.upgradeController(controller);
@@ -94,21 +100,21 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
                         this.pathControllerToSpawn = this.creep.value!.pos.findPathTo(spawn);
                     }
                     this.creep.currentTask = new MoveByPathTask(this.creep, this.pathControllerToSpawn);
-                    this.status = Status.MOVING_TO_SPAWN;
+                    this.toState(State.MOVING_TO_SPAWN);
                 }
                 break;
             }
-            case Status.MOVING_TO_SPAWN: {
+            case State.MOVING_TO_SPAWN: {
                 if (this.creep.value!.pos.inRangeTo(spawn, 1)) {
-                    this.status = Status.RESTING_AT_SPAWN;
+                    this.toState(State.RESTING_AT_SPAWN);
                     this.creep.clearTask();
                 } else if (taskResult.status == CreepTaskStatus.FAIL) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                 }
                 break;
             }
-            case Status.RESTING_AT_SPAWN: {
+            case State.RESTING_AT_SPAWN: {
                 const spawnHasTask = SpawnAI.of(spawn).taskQueue.length > 0;
                 if (!spawnHasTask) {
                     const spawnEnergy = spawn.store.energy;
@@ -119,18 +125,18 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
                             this.pathSpawnToController = this.creep.value!.pos.findPathTo(upgradingPoint.pos);
                         }
                         this.creep.currentTask = new MoveByPathTask(this.creep, this.pathSpawnToController);
-                        this.status = Status.MOVING_TO_CONTROLLER;
+                        this.toState(State.MOVING_TO_CONTROLLER);
                         break;
                     }
                 }
                 if (dodgeRequests.length > 0) {
-                    this.status = Status.DODGING_AT_SPAWN;
+                    this.toState(State.DODGING_AT_SPAWN);
                     this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
                     break;
                 }
                 break;
             }
-            case Status.DODGING_AT_SPAWN: {
+            case State.DODGING_AT_SPAWN: {
                 if (dodgeRequests.length > 0) {
                     this.creep.requestMove(oppositeDirection(dodgeRequests[0].direction));
                     break;
@@ -141,7 +147,7 @@ export class EarlyUpgrader extends CreepRole<EarlyUpgraderMemory> {
                     (SpawnAI.of(spawn).taskQueue.length == 0 &&
                         spawn.store.energy >= this.creep.value!.store.getCapacity('energy'))
                 ) {
-                    this.status = Status.NEW_BORN;
+                    this.toState(State.NEW_BORN);
                     this.creep.clearTask();
                     break;
                 }
